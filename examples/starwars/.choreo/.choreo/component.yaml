@@ -5,22 +5,10 @@ schemaVersion: 1.2
 endpoints:
   # First Endpoint: The root service on port 8090
   - name: greeting_service
-    displayName: Ballerina Greeting GraphQL
+    displayName: Ballerina Service GraphQL
     service:
-      basePath: /
-      port: 8090
+      basePath: /graphql
+      port: 9090
     type: GraphQL
     networkVisibilities: 
       - Public
-    schemaFilePath: openapi.yaml
-
-  # Second Endpoint: The user service on port 8091
-  - name: user_service
-    displayName: Ballerina User Details GraphQL
-    service:
-      basePath: /user
-      port: 8091
-    type: GraphQL
-    networkVisibilities: 
-      - Public
-    schemaFilePath: openapi.yaml
