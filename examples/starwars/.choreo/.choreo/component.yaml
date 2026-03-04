@@ -1,0 +1,26 @@
+# +required The configuration file schema version
+schemaVersion: 1.2
+
+# +optional Incoming connection details for the component
+endpoints:
+  # First Endpoint: The root service on port 8090
+  - name: greeting_service
+    displayName: Ballerina Greeting GraphQL
+    service:
+      basePath: /
+      port: 8090
+    type: GraphQL
+    networkVisibilities: 
+      - Public
+    schemaFilePath: openapi.yaml
+
+  # Second Endpoint: The user service on port 8091
+  - name: user_service
+    displayName: Ballerina User Details GraphQL
+    service:
+      basePath: /user
+      port: 8091
+    type: GraphQL
+    networkVisibilities: 
+      - Public
+    schemaFilePath: openapi.yaml
