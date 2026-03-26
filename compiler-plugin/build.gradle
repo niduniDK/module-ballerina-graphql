@@ -31,8 +31,14 @@ dependencies {
     implementation group: 'org.ballerinalang', name: 'ballerina-lang', version: "${ballerinaLangVersion}"
     implementation group: 'org.ballerinalang', name: 'ballerina-tools-api', version: "${ballerinaLangVersion}"
     implementation group: 'org.ballerinalang', name: 'ballerina-parser', version: "${ballerinaLangVersion}"
+    implementation group: 'org.ballerinalang', name: 'ballerina-runtime', version: "${ballerinaLangVersion}"
 
     implementation project(':graphql-commons')
+
+    implementation "com.graphql-java:graphql-java:21.0"
+
+    implementation "com.fasterxml.jackson.core:jackson-databind:2.17.0"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.0"
 }
 
 def excludePattern = '**/module-info.java'
