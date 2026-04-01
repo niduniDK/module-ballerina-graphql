@@ -398,7 +398,8 @@ public class EndpointYamlGenerator {
         DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
                 "PORT_CONFIGURATION_BEING_NULL",
                 "The configurable value provided for the port should have a " +
-                        "default value to generate the server details",
+                        "default value to generate the server details" +
+                "when --export-endpoints flag presents",
                 DiagnosticSeverity.ERROR
         );
         context.reportDiagnostic(DiagnosticFactory.createDiagnostic(diagnosticInfo, context.node().location()));
@@ -408,7 +409,8 @@ public class EndpointYamlGenerator {
         DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
                 "PORT_CONFIGURATION_BEING_NULL",
                 "The server port is defined as a configurable. Hence," +
-                        "using the default value to generate the server information",
+                        "using the default value to generate the server information" +
+                "when --export-endpoints flag presents",
                 DiagnosticSeverity.WARNING
         );
         context.reportDiagnostic(DiagnosticFactory.createDiagnostic(diagnosticInfo, context.node().location()));

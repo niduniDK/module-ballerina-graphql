@@ -101,13 +101,13 @@ public class FileNameGeneratorUtil {
                 basePath.append(identifierNode.toString().replace("\"", "").trim());
             }
 
-            String service = basePath.toString();
-            if (allServices.contains(service)) {
-                service = service + HYPHEN + serviceSymbol.get().hashCode();
+            String serviceBasePath = basePath.toString();
+            if (allServices.contains(serviceBasePath)) {
+                serviceBasePath = serviceBasePath + HYPHEN + serviceSymbol.get().hashCode();
             } else {
-                allServices.add(service);
+                allServices.add(serviceBasePath);
             }
-            this.services.put(serviceSymbol.get().hashCode(), service);
+            this.services.put(serviceSymbol.get().hashCode(), serviceBasePath);
         }
     }
 
@@ -115,10 +115,16 @@ public class FileNameGeneratorUtil {
                                      Symbol serviceSymbol) {
         String serviceName = services.get(serviceSymbol.hashCode());
         String fileName = serviceName == null ? "" : getNormalizedFileName(serviceName);
-        String balFileName = syntaxTree.filePath().replaceAll(SLASH, UNDERSCORE).split("\\.")[0];
+        String[] fileNames = syntaxTree.filePath().replaceAll(SLASH, UNDERSCORE).split("\\.");
+
+        if (fileNames.length == 0) {
+            return "";
+        }
+        String balFileName = fileNames[0];
         if (fileName.equals(SLASH)) {
             return balFileName + schemaExtension;
-        } else if (fileName.contains(HYPHEN) && fileName.split(HYPHEN)[0].equals(SLASH) || fileName.isBlank()) {
+        }
+        if (fileName.contains(HYPHEN) && fileName.split(HYPHEN)[0].equals(SLASH) || fileName.isBlank()) {
             return balFileName + UNDERSCORE + serviceSymbol.hashCode() + schemaExtension;
         }
         return fileName + schemaExtension;

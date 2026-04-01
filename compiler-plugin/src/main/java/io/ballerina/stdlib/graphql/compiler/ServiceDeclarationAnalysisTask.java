@@ -42,6 +42,7 @@ import static io.ballerina.stdlib.graphql.compiler.schema.generator.GeneratorUti
  */
 public class ServiceDeclarationAnalysisTask extends ServiceAnalysisTask {
 
+    private static final String SDL_EXTENSION = ".graphql";
     public ServiceDeclarationAnalysisTask(Map<String, Object> nodeMap) {
         super(nodeMap);
     }
@@ -84,15 +85,14 @@ public class ServiceDeclarationAnalysisTask extends ServiceAnalysisTask {
 
         if (isExportEndpoints) {
             EndpointYamlGenerator endpointYamlGeneratorImplGql = new EndpointYamlGenerator(node, context);
-            endpointYamlGeneratorImplGql.setSchemaExtension(".graphql");
+            endpointYamlGeneratorImplGql.setSchemaExtension(SDL_EXTENSION);
+            SchemaExporter schemaExporter = new SchemaExporter(schema, context);
             try {
                 endpointYamlGeneratorImplGql.writeEndpointYaml();
+                schemaExporter.exportSchema();
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                // Catches IOException
             }
-
-            SchemaExporter schemaExporter = new SchemaExporter(schema, context);
-            schemaExporter.exportSchema();
         }
     }
 }

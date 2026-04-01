@@ -8,6 +8,7 @@ import io.ballerina.stdlib.graphql.commons.utils.SdlSchemaStringGenerator;
 import io.ballerina.stdlib.graphql.compiler.endpointyaml.generator.FileNameGeneratorUtil;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -18,9 +19,11 @@ public class SchemaExporter {
     private final Schema schema;
     private static final String ARTIFACT = "artifact";
     private static final String SDL_EXTENSION = ".graphql";
+    private static final String TARGET = "target";
 
     private final SyntaxNodeAnalysisContext context;
     private final FileNameGeneratorUtil fileNameGeneratorUtil;
+    private static final PrintStream outStream = System.out;
 
     private String schemaFileName = "";
 
@@ -28,18 +31,23 @@ public class SchemaExporter {
         this.schema = schema;
         this.context = context;
 
-        this.fileNameGeneratorUtil = new FileNameGeneratorUtil(this.context, ".graphql");
+        this.fileNameGeneratorUtil = new FileNameGeneratorUtil(this.context, SDL_EXTENSION);
     }
 
     public Schema getSchema() {
         return this.schema;
     }
 
-    public void exportSchema() {
+    public void exportSchema() throws IOException {
         Package currentPackage = this.context.currentPackage();
         Project project = currentPackage.project();
         Path outPath = project.targetDir();
+        // Convert the custom Schema object to GraphQLSchema
+        String sdlString = SdlSchemaStringGenerator.generate(this.schema);
+        writeGqlSchema(outPath, sdlString);
+    }
 
+    private void writeGqlSchema(Path outPath, String sdlString) {
         this.schemaFileName = this.fileNameGeneratorUtil.getFileName();
         if (this.schemaFileName.endsWith(SDL_EXTENSION)) {
             this.schemaFileName = this.schemaFileName.substring(0,
@@ -47,22 +55,13 @@ public class SchemaExporter {
         }
 
         try {
-            Files.createDirectories(Paths.get(outPath + "/" + ARTIFACT));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        String fileName = resolveContractFileName(outPath.resolve(ARTIFACT),
-                this.schemaFileName);
-
-        Path path = outPath.resolve(ARTIFACT + "/" + fileName + SDL_EXTENSION);
-
-        // Convert the custom Schema object to GraphQLSchema
-        String sdlString = SdlSchemaStringGenerator.generate(this.schema);
-
-        try {
+            Files.createDirectories(Paths.get(String.valueOf(outPath), ARTIFACT));
+            String fileName = resolveContractFileName(outPath.resolve(ARTIFACT),
+                    this.schemaFileName);
+            Path path = Paths.get(TARGET, ARTIFACT, fileName + SDL_EXTENSION).toAbsolutePath();
             Files.writeString(path, sdlString);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            outStream.println(e.getMessage());
         }
     }
 }
