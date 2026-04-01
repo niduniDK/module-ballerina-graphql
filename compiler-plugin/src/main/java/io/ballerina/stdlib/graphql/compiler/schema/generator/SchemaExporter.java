@@ -52,7 +52,7 @@ public class SchemaExporter {
             throw new RuntimeException(e);
         }
         String fileName = resolveContractFileName(outPath.resolve(ARTIFACT),
-                this.schemaFileName, false);
+                this.schemaFileName);
 
         Path path = outPath.resolve(ARTIFACT + "/" + fileName + SDL_EXTENSION);
 

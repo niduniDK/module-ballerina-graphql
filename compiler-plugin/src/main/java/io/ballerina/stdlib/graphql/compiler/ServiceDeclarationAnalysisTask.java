@@ -30,6 +30,7 @@ import io.ballerina.stdlib.graphql.compiler.schema.generator.SchemaExporter;
 import io.ballerina.stdlib.graphql.compiler.service.InterfaceEntityFinder;
 import io.ballerina.stdlib.graphql.compiler.service.validator.ServiceValidator;
 
+import java.io.IOException;
 import java.util.Map;
 
 import static io.ballerina.stdlib.graphql.commons.utils.Utils.isGraphqlService;
@@ -75,16 +76,20 @@ public class ServiceDeclarationAnalysisTask extends ServiceAnalysisTask {
         BuildOptions buildOptions = project.buildOptions();
         boolean isExportEndpoints = false;
 
-        try{
+        try {
             isExportEndpoints = buildOptions.exportEndpoints();
-        } catch (Throwable e) {            // Used to catch the buildOption not found error for earlier ballerina versions
-            System.out.println(e.fillInStackTrace().getMessage());
+        } catch (Throwable e) {
+            // Used to catch the buildOption not found error for earlier ballerina versions
         }
 
         if (isExportEndpoints) {
-            EndpointYamlGenerator endpointYamlGeneratorGql = new EndpointYamlGenerator(node, context);
-            endpointYamlGeneratorGql.setSchemaExtension(".graphql");
-            endpointYamlGeneratorGql.writeEndpointYaml();
+            EndpointYamlGenerator endpointYamlGeneratorImplGql = new EndpointYamlGenerator(node, context);
+            endpointYamlGeneratorImplGql.setSchemaExtension(".graphql");
+            try {
+                endpointYamlGeneratorImplGql.writeEndpointYaml();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
 
             SchemaExporter schemaExporter = new SchemaExporter(schema, context);
             schemaExporter.exportSchema();
