@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package io.ballerina.stdlib.graphql.compiler.schema.generator;
 
 import io.ballerina.projects.Package;
@@ -8,7 +26,6 @@ import io.ballerina.stdlib.graphql.commons.utils.SdlSchemaStringGenerator;
 import io.ballerina.stdlib.graphql.compiler.endpointyaml.generator.FileNameGeneratorUtil;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,7 +40,6 @@ public class SchemaExporter {
 
     private final SyntaxNodeAnalysisContext context;
     private final FileNameGeneratorUtil fileNameGeneratorUtil;
-    private static final PrintStream outStream = System.out;
 
     private String schemaFileName = "";
 
@@ -31,7 +47,7 @@ public class SchemaExporter {
         this.schema = schema;
         this.context = context;
 
-        this.fileNameGeneratorUtil = new FileNameGeneratorUtil(this.context, SDL_EXTENSION);
+        this.fileNameGeneratorUtil = new FileNameGeneratorUtil(this.context);
     }
 
     public Schema getSchema() {
@@ -47,21 +63,18 @@ public class SchemaExporter {
         writeGqlSchema(outPath, sdlString);
     }
 
-    private void writeGqlSchema(Path outPath, String sdlString) {
+    private void writeGqlSchema(Path outPath, String sdlString) throws IOException {
         this.schemaFileName = this.fileNameGeneratorUtil.getFileName();
         if (this.schemaFileName.endsWith(SDL_EXTENSION)) {
             this.schemaFileName = this.schemaFileName.substring(0,
                     this.schemaFileName.length() - SDL_EXTENSION.length());
         }
 
-        try {
-            Files.createDirectories(Paths.get(String.valueOf(outPath), ARTIFACT));
-            String fileName = resolveContractFileName(outPath.resolve(ARTIFACT),
-                    this.schemaFileName);
-            Path path = Paths.get(TARGET, ARTIFACT, fileName + SDL_EXTENSION).toAbsolutePath();
-            Files.writeString(path, sdlString);
-        } catch (IOException e) {
-            outStream.println(e.getMessage());
-        }
+        Files.createDirectories(Paths.get(String.valueOf(outPath), ARTIFACT));
+        String fileName = resolveContractFileName(outPath.resolve(ARTIFACT),
+                this.schemaFileName, context);
+        Path path = Paths.get(TARGET, ARTIFACT, fileName + SDL_EXTENSION).toAbsolutePath();
+        Files.writeString(path, sdlString);
+
     }
 }

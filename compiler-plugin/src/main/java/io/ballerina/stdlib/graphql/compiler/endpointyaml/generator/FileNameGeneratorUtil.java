@@ -28,6 +28,9 @@ import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
 import io.ballerina.compiler.syntax.tree.SyntaxTree;
 import io.ballerina.projects.plugins.SyntaxNodeAnalysisContext;
+import io.ballerina.tools.diagnostics.DiagnosticFactory;
+import io.ballerina.tools.diagnostics.DiagnosticInfo;
+import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -51,20 +54,20 @@ public class FileNameGeneratorUtil {
 
     private static final String YAML_EXTENSION = "_yaml";
 
-    private final SyntaxNodeAnalysisContext context;
-    private final String schemaExtension;
+    private SyntaxNodeAnalysisContext context = null;
+    private static final String schemaExtension = ".graphql";
 
-    public FileNameGeneratorUtil(SyntaxNodeAnalysisContext context, String schemaExtension) {
+    public FileNameGeneratorUtil(SyntaxNodeAnalysisContext context) {
         this.context = context;
-        this.schemaExtension = schemaExtension;
     }
 
     public String getFileName() {
         SyntaxTree syntaxTree = context.syntaxTree();
         SemanticModel semanticModel = context.semanticModel();
         extractServiceNodes(syntaxTree.rootNode(), semanticModel);
+
+        String balFileName = syntaxTree.filePath().replaceAll(SLASH, UNDERSCORE).split("\\.")[0];
         if (!(context.node() instanceof ServiceDeclarationNode node)) {
-            String balFileName = syntaxTree.filePath().replaceAll(SLASH, UNDERSCORE).split("\\.")[0];
             return balFileName + schemaExtension;
         }
 
@@ -72,9 +75,8 @@ public class FileNameGeneratorUtil {
         if (serviceSymbol.isEmpty()) {
             String basePathName = getServiceBasePath(node);
             if (!basePathName.isBlank()) {
-                return getNormalizedFileName(basePathName) + schemaExtension;
+                return balFileName + UNDERSCORE + getNormalizedFileName(basePathName) + schemaExtension;
             }
-            String balFileName = syntaxTree.filePath().replaceAll(SLASH, UNDERSCORE).split("\\.")[0];
             return balFileName + schemaExtension;
         }
 
@@ -107,7 +109,7 @@ public class FileNameGeneratorUtil {
             } else {
                 allServices.add(serviceBasePath);
             }
-            this.services.put(serviceSymbol.get().hashCode(), serviceBasePath);
+            services.put(serviceSymbol.get().hashCode(), serviceBasePath);
         }
     }
 
@@ -127,7 +129,7 @@ public class FileNameGeneratorUtil {
         if (fileName.contains(HYPHEN) && fileName.split(HYPHEN)[0].equals(SLASH) || fileName.isBlank()) {
             return balFileName + UNDERSCORE + serviceSymbol.hashCode() + schemaExtension;
         }
-        return fileName + schemaExtension;
+        return balFileName + UNDERSCORE + fileName + schemaExtension;
     }
 
     private String getServiceBasePath(ServiceDeclarationNode serviceNode) {
@@ -149,17 +151,18 @@ public class FileNameGeneratorUtil {
         return fileName;
     }
 
-    public static String resolveContractFileName(Path outPath, String fileName) {
+    public static String resolveContractFileName(Path outPath, String fileName, SyntaxNodeAnalysisContext context) {
         if (outPath != null && Files.exists(outPath)) {
             final File[] listFiles = new File(String.valueOf(outPath)).listFiles();
             if (listFiles != null) {
-                fileName = checkAvailabilityOfGivenName(fileName, listFiles);
+                fileName = checkAvailabilityOfGivenName(fileName, listFiles, context);
             }
         }
         return fileName;
     }
 
-    private static String checkAvailabilityOfGivenName(String fileName, File[] listFiles) {
+    private static String checkAvailabilityOfGivenName(String fileName, File[] listFiles,
+                                                       SyntaxNodeAnalysisContext context) {
         for (File file : listFiles) {
             if (System.console() != null && file.getName().equals(fileName)) {
                 String userInput = System.console().readLine("There is already a file named '" + file.getName() +
@@ -167,18 +170,35 @@ public class FileNameGeneratorUtil {
                 if (!Objects.equals(userInput.toLowerCase(Locale.ENGLISH), "y")) {
                     fileName = setGeneratedFileName(listFiles, fileName);
                 }
+            } else if (System.console() == null) {
+                DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
+                        "FILE_BEING_OVERWRITTEN",
+                        "There is already a file named '" + file.getName() +
+                                "' in the target location. File will be overwritten.",
+                        DiagnosticSeverity.WARNING
+                );
+                context.reportDiagnostic(DiagnosticFactory.createDiagnostic(diagnosticInfo, context.node().location()));
             }
         }
         return fileName;
     }
 
-    private static String setGeneratedFileName(File[] listFiles, String fileName) {
+    private static boolean isSameFileName(String file1, String file2) {
+        String fileName1 = getFileNameWithoutExtension(file1);
+        String fileName2 = getFileNameWithoutExtension(file2);
+        return fileName1.equals(fileName2);
+    }
+
+    private static String getFileNameWithoutExtension(String fileName) {
+        int i = fileName.lastIndexOf('.');
+        return i == -1 ? fileName : fileName.substring(0, i);
+    }
+
+    private static String setGeneratedFileName(File[] filesList, String fileName) {
         int duplicateCount = 0;
-        for (File listFile : listFiles) {
-            String listFileName = listFile.getName();
-            if (listFileName.contains(".") && ((listFileName.split("\\.")).length >= 2)
-                    && (listFileName.split("\\.")[0]
-                    .equals(fileName.split("\\.")[0]))) {
+        for (File file : filesList) {
+            String fName = file.getName();
+            if (isSameFileName(fName, fileName)) {
                 duplicateCount++;
             }
         }

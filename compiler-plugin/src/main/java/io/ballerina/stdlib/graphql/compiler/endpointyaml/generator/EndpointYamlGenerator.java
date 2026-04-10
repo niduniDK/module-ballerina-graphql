@@ -25,7 +25,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.ModuleSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
-import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.BasicLiteralNode;
 import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
 import io.ballerina.compiler.syntax.tree.ExplicitNewExpressionNode;
@@ -52,13 +51,10 @@ import io.ballerina.tools.diagnostics.DiagnosticInfo;
 import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -68,36 +64,29 @@ import static io.ballerina.stdlib.graphql.compiler.endpointyaml.generator.FileNa
 public class EndpointYamlGenerator {
     private final ServiceDeclarationNode node;
     private final SyntaxNodeAnalysisContext context;
-    private String schemaFileName;
+    private final String schemaFileName;
 
     private int port;
-    private Endpoint endpoint;
-    private Map<String, ModuleMemberVisitor> moduleVisitors = new LinkedHashMap<>();
     final PackageMemberVisitor packageMemberVisitor = new PackageMemberVisitor();
-    private final FileNameGeneratorUtil fileNameGeneratorUtil;
-    private final PrintStream outStream = System.out;
 
     private static final String ARTIFACT = "artifact";
     private static final String GRAPHQL = "GraphQL";
     private static final String TARGET = "target";
-    private static final String YAML_EXTENSTION = ".yaml";
-    private static final String OPENAPI_SUFFIX = "_openapi";
+    private static final String YAML_EXTENSION = ".yaml";
     private static final String ENDPOINT_SUFFIX = "_endpoint";
-    private String schemaExtension = "";
-    private String type;
 
-    private record ListenerInfo(Optional<ParenthesizedArgList> argList, String type) {
+    private record ListenerInfo(Optional<ParenthesizedArgList> argList) {
     }
 
-    private record ListenerResolution(Optional<ParenthesizedArgList> argList, String type) {
+    private record ListenerResolution(Optional<ParenthesizedArgList> argList) {
     }
 
     public EndpointYamlGenerator(ServiceDeclarationNode node, SyntaxNodeAnalysisContext context) {
         this.node = node;
         this.context = context;
 
-        this.fileNameGeneratorUtil = new FileNameGeneratorUtil(context, this.schemaExtension);
-        this.schemaFileName = this.fileNameGeneratorUtil.getFileName();
+        FileNameGeneratorUtil fileNameGeneratorUtil = new FileNameGeneratorUtil(context);
+        this.schemaFileName = fileNameGeneratorUtil.getFileName();
     }
 
     public Endpoint getEndpoint() {
@@ -107,15 +96,13 @@ public class EndpointYamlGenerator {
         ListenerInfo listenerInfo = resolveListenerInfo(moduleName);
         port = resolvePort(listenerInfo.argList());
         String basePath = buildBasePath();
-        this.type = normalizeType(listenerInfo.type());
 
-        this.schemaFileName = this.schemaFileName + schemaExtension;
-        endpoint = new Endpoint(String.valueOf(port), basePath, type, this.schemaFileName);
-        return this.endpoint;
+        return new Endpoint(port, basePath, GRAPHQL, this.schemaFileName);
     }
 
     private void ensureModuleVisited(String moduleName) {
-        moduleVisitors = packageMemberVisitor.createModuleVisitor(moduleName, context.semanticModel());
+        Map<String, ModuleMemberVisitor> moduleVisitors = packageMemberVisitor
+                .createModuleVisitor(moduleName, context.semanticModel());
         ModuleMemberVisitor moduleMemberVisitor = moduleVisitors.get(moduleName);
         packageMemberVisitor.setModuleVisitors(moduleVisitors);
 
@@ -136,25 +123,22 @@ public class EndpointYamlGenerator {
         Optional<ParenthesizedArgList> argList = Optional.empty();
         SemanticModel semanticModel = context.semanticModel();
 
-        for (ExpressionNode raw : node.expressions()) {
+        for (ExpressionNode raw : this.node.expressions()) {
             ExpressionNode expr = unwrapCheckExpression(raw);
 
             if (expr.kind().equals(SyntaxKind.EXPLICIT_NEW_EXPRESSION)) {
                 ExplicitNewExpressionNode explicit = (ExplicitNewExpressionNode) expr;
                 argList = Optional.ofNullable(explicit.parenthesizedArgList());
-                this.type = extractTypeFromExplicitNew();
             } else if (expr.kind().equals(SyntaxKind.IMPLICIT_NEW_EXPRESSION)) {
                 ImplicitNewExpressionNode implicit = (ImplicitNewExpressionNode) expr;
                 argList = implicit.parenthesizedArgList();
-                this.type = extractTypeFromSymbol(semanticModel, expr);
             } else if (isNameReference(expr)) {
                 ListenerResolution resolution = resolveNamedListener(expr, moduleName, semanticModel);
                 argList = resolution.argList();
-                this.type = resolution.type();
             }
         }
 
-        return new ListenerInfo(argList, this.type);
+        return new ListenerInfo(argList);
     }
 
     private ExpressionNode unwrapCheckExpression(ExpressionNode expr) {
@@ -162,19 +146,6 @@ public class EndpointYamlGenerator {
             return ((CheckExpressionNode) expr).expression();
         }
         return expr;
-    }
-
-    private String extractTypeFromExplicitNew() {
-        List<String> parts = List.of(node.expressions().get(0).toString().split(" "));
-        return parts.get(1).split(":")[0];
-    }
-
-    private String extractTypeFromSymbol(SemanticModel semanticModel, ExpressionNode expr) {
-        Symbol symbol = semanticModel.symbol(expr).orElse(null);
-        if (symbol instanceof TypeSymbol typeSymbol) {
-            return typeSymbol.getModule().map(m -> m.id().moduleName()).orElse("");
-        }
-        return "";
     }
 
     private boolean isNameReference(ExpressionNode expr) {
@@ -193,7 +164,6 @@ public class EndpointYamlGenerator {
 
         if (expr instanceof QualifiedNameReferenceNode refNode) {
             listenerName = unescapeIdentifier(refNode.identifier().text().trim());
-            this.type = refNode.modulePrefix().text();
         } else {
             listenerName = unescapeIdentifier(expr.toString().trim());
         }
@@ -202,13 +172,12 @@ public class EndpointYamlGenerator {
                 packageMemberVisitor.getListenerDeclaration(listenerModuleName, listenerName);
 
         if (declOpt.isEmpty()) {
-            return new ListenerResolution(Optional.empty(), this.type);
+            return new ListenerResolution(Optional.empty());
         }
 
         ListenerDeclarationNode decl = declOpt.get();
-        this.type = decl.typeDescriptor().get().children().get(0).toString();
         Optional<ParenthesizedArgList> argList = extractArgListFromListenerDecl(decl);
-        return new ListenerResolution(argList, this.type);
+        return new ListenerResolution(argList);
     }
 
     private Optional<ParenthesizedArgList> extractArgListFromListenerDecl(ListenerDeclarationNode decl) {
@@ -271,25 +240,17 @@ public class EndpointYamlGenerator {
 
     private String buildBasePath() {
         StringBuilder basePath = new StringBuilder();
-        for (Node identifierNode : node.absoluteResourcePath()) {
+        for (Node identifierNode : this.node.absoluteResourcePath()) {
             basePath.append(identifierNode.toString().replace("\"", "").trim());
         }
         return basePath.toString();
-    }
-
-    private String normalizeType(String rawType) {
-        if (rawType.equals("graphql")) {
-            return GRAPHQL;
-        } else {
-            return rawType;
-        }
     }
 
     public void writeEndpointYaml() throws IOException {
         Endpoint ep = getEndpoint();
         Path outPath = resolveOutputPath();
         String fileName = buildEndpointFileName(outPath);
-        Path path = Paths.get(TARGET, ARTIFACT, fileName + YAML_EXTENSTION).toAbsolutePath();
+        Path path = Paths.get(TARGET, ARTIFACT, fileName + YAML_EXTENSION).toAbsolutePath();
         writeYaml(path, new EndpointWrapper(ep));
     }
 
@@ -297,21 +258,16 @@ public class EndpointYamlGenerator {
         Package currentPackage = this.context.currentPackage();
         Project project = currentPackage.project();
         Path outPath = project.targetDir();
-
-        try {
-            Files.createDirectories(Paths.get(String.valueOf(outPath), ARTIFACT));
-        } catch (IOException e) {
-            outStream.println(e.getMessage());
-        }
+        Files.createDirectories(Paths.get(String.valueOf(outPath), ARTIFACT));
         return outPath;
     }
 
     private String buildEndpointFileName(Path outPath) {
-        String base = schemaFileName.split("\\.")[0] + ENDPOINT_SUFFIX;
-        return resolveContractFileName(outPath.resolve(ARTIFACT), base);
+        String base = this.schemaFileName.split("\\.")[0] + ENDPOINT_SUFFIX;
+        return resolveContractFileName(outPath.resolve(ARTIFACT), base, context);
     }
 
-    private void writeYaml(Path path, EndpointWrapper wrapper) {
+    private void writeYaml(Path path, EndpointWrapper wrapper) throws IOException {
         YAMLFactory yamlFactory = YAMLFactory.builder()
                 .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
                 .build();
@@ -321,7 +277,7 @@ public class EndpointYamlGenerator {
         try (Writer writer = Files.newBufferedWriter(path)) {
             mapper.writeValue(writer, wrapper);
         } catch (IOException e) {
-            outStream.println(e.getMessage());
+            throw new IOException("Failed to write to: " + path, e);
         }
     }
 
@@ -398,8 +354,8 @@ public class EndpointYamlGenerator {
         DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
                 "PORT_CONFIGURATION_BEING_NULL",
                 "The configurable value provided for the port should have a " +
-                        "default value to generate the server details" +
-                "when --export-endpoints flag presents",
+                        "default value to generate the server details " +
+                "when --export-endpoints flag is present.",
                 DiagnosticSeverity.ERROR
         );
         context.reportDiagnostic(DiagnosticFactory.createDiagnostic(diagnosticInfo, context.node().location()));
@@ -409,16 +365,11 @@ public class EndpointYamlGenerator {
         DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
                 "PORT_CONFIGURATION_BEING_NULL",
                 "The server port is defined as a configurable. Hence," +
-                        "using the default value to generate the server information" +
-                "when --export-endpoints flag presents",
+                        "using the default value to generate the server information " +
+                "when --export-endpoints flag is present",
                 DiagnosticSeverity.WARNING
         );
         context.reportDiagnostic(DiagnosticFactory.createDiagnostic(diagnosticInfo, context.node().location()));
-    }
-
-
-    public void setSchemaExtension(String schemaExtension) {
-        this.schemaExtension = schemaExtension;
     }
 
     public static String unescapeIdentifier(String parameterName) {

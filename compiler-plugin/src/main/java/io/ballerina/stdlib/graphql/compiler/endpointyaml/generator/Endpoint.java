@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, WSO2 LLC. (http://www.wso2.com).
+ * Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -19,12 +19,12 @@
 package io.ballerina.stdlib.graphql.compiler.endpointyaml.generator;
 
 public class Endpoint {
-    private final String port;
+    private final int port;
     private final String basePath;
     private final String type;
     private final String schemaPath;
 
-    Endpoint(String port, String basePath, String type, String schemaPath) {
+    Endpoint(int port, String basePath, String type, String schemaPath) {
         this.port = port;
         this.basePath = basePath;
         this.type = type;
@@ -39,7 +39,7 @@ public class Endpoint {
         return type;
     }
 
-    public String getPort() {
+    public int getPort() {
         return port;
     }
 
