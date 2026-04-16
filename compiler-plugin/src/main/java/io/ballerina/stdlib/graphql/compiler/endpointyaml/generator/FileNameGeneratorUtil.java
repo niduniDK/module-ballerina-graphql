@@ -134,9 +134,9 @@ public class FileNameGeneratorUtil {
 
     private String getServiceBasePath(ServiceDeclarationNode serviceNode) {
         StringBuilder basePath = new StringBuilder();
-        NodeList<Node> resourcePathNode = serviceNode.absoluteResourcePath();
-        for (Node identifierNode : resourcePathNode) {
-            basePath.append(identifierNode.toString().replace("\"", "").trim());
+        NodeList<Node> pathSegments = serviceNode.absoluteResourcePath();
+        for (Node identifierNode : pathSegments) {
+            basePath.append(identifierNode.toString().trim());
         }
         return basePath.toString();
     }
