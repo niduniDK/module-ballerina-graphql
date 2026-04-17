@@ -18,11 +18,14 @@
 
 package io.ballerina.stdlib.graphql.compiler.endpointyaml.generator;
 
+import java.util.Objects;
+
 public class EndpointWrapper {
     private final Endpoint endpoint;
+    private static final String ENDPOINT_NOT_NULL_MSG = "endpoint must not be null";
 
     public EndpointWrapper(Endpoint endpoint) {
-        this.endpoint = endpoint;
+        this.endpoint = Objects.requireNonNull(endpoint, ENDPOINT_NOT_NULL_MSG);
     }
 
     public Endpoint getEndpoint() {

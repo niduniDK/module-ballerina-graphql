@@ -164,13 +164,16 @@ public class FileNameGeneratorUtil {
     private static String checkAvailabilityOfGivenName(String fileName, File[] listFiles,
                                                        SyntaxNodeAnalysisContext context) {
         for (File file : listFiles) {
-            if (System.console() != null && file.getName().equals(fileName)) {
+            if (!isSameFileName(file.getName(), fileName)) {
+                continue;
+            }
+            if (System.console() != null) {
                 String userInput = System.console().readLine("There is already a file named '" + file.getName() +
                         "' in the target location. Do you want to overwrite the file? [y/N] ");
                 if (!Objects.equals(userInput.toLowerCase(Locale.ENGLISH), "y")) {
                     fileName = setGeneratedFileName(listFiles, fileName);
                 }
-            } else if (System.console() == null) {
+            } else {
                 DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
                         "FILE_BEING_OVERWRITTEN",
                         "There is already a file named '" + file.getName() +

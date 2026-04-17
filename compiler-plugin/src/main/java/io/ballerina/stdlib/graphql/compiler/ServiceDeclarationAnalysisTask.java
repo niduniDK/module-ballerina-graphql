@@ -29,6 +29,9 @@ import io.ballerina.stdlib.graphql.compiler.endpointyaml.generator.EndpointYamlG
 import io.ballerina.stdlib.graphql.compiler.schema.generator.SchemaExporter;
 import io.ballerina.stdlib.graphql.compiler.service.InterfaceEntityFinder;
 import io.ballerina.stdlib.graphql.compiler.service.validator.ServiceValidator;
+import io.ballerina.tools.diagnostics.DiagnosticFactory;
+import io.ballerina.tools.diagnostics.DiagnosticInfo;
+import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 
 import java.io.IOException;
 import java.util.Map;
@@ -89,7 +92,12 @@ public class ServiceDeclarationAnalysisTask extends ServiceAnalysisTask {
                 endpointYamlGeneratorImplGql.writeEndpointYaml();
                 schemaExporter.exportSchema();
             } catch (IOException e) {
-                // Catches Exceptions occurs while writing
+                DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
+                        "EXPORT_FAILED",
+                        "Failed to export endpoint artifacts: " + e.getMessage(),
+                        DiagnosticSeverity.WARNING
+                        );
+                context.reportDiagnostic(DiagnosticFactory.createDiagnostic(diagnosticInfo, node.location()));
             }
         }
     }

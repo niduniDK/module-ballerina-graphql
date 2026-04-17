@@ -28,7 +28,6 @@ import io.ballerina.stdlib.graphql.compiler.endpointyaml.generator.FileNameGener
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import static io.ballerina.stdlib.graphql.compiler.endpointyaml.generator.FileNameGeneratorUtil.resolveContractFileName;
 
@@ -70,10 +69,11 @@ public class SchemaExporter {
                     this.schemaFileName.length() - SDL_EXTENSION.length());
         }
 
-        Files.createDirectories(Paths.get(String.valueOf(outPath), ARTIFACT));
+        Path artifactDir = outPath.resolve(ARTIFACT);
+        Files.createDirectories(artifactDir);
         String fileName = resolveContractFileName(outPath.resolve(ARTIFACT),
                 this.schemaFileName, context);
-        Path path = Paths.get(TARGET, ARTIFACT, fileName + SDL_EXTENSION).toAbsolutePath();
+        Path path = artifactDir.resolve(fileName + SDL_EXTENSION);
         Files.writeString(path, sdlString);
 
     }

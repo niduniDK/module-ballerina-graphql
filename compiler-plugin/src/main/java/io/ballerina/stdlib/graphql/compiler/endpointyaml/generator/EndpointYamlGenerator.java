@@ -95,7 +95,11 @@ public class EndpointYamlGenerator {
         String moduleName = context.moduleId().moduleName();
         ensureModuleVisited(moduleName);
 
-        ListenerInfo listenerInfo = resolveListenerInfo(moduleName).get();
+        Optional<ListenerInfo> listenerInfoOpt = resolveListenerInfo(moduleName);
+        if (listenerInfoOpt.isEmpty()) {
+            throw new IllegalStateException("No listener information found for module: " + moduleName);
+        }
+        ListenerInfo listenerInfo = listenerInfoOpt.get();
         port = resolvePort(listenerInfo.argList());
         String basePath = buildBasePath();
 
@@ -135,8 +139,10 @@ public class EndpointYamlGenerator {
                 ImplicitNewExpressionNode implicit = (ImplicitNewExpressionNode) expr;
                 argList = implicit.parenthesizedArgList();
             } else if (isNameReference(expr)) {
-                ListenerResolution resolution = resolveNamedListener(expr, moduleName, semanticModel).get();
-                argList = Optional.ofNullable(resolution.argList());
+                Optional<ListenerResolution> resolution = resolveNamedListener(expr, moduleName, semanticModel);
+                if (resolution.isPresent()) {
+                    argList = Optional.ofNullable(resolution.get().argList());
+                }
             }
         }
         return argList.map(ListenerInfo::new);
@@ -179,7 +185,7 @@ public class EndpointYamlGenerator {
 
         ListenerDeclarationNode decl = declOpt.get();
         Optional<ParenthesizedArgList> argList = extractArgListFromListenerDecl(decl);
-        return Optional.of(new ListenerResolution(argList.get()));
+        return argList.map(ListenerResolution::new);
     }
 
     private Optional<ParenthesizedArgList> extractArgListFromListenerDecl(ListenerDeclarationNode decl) {
@@ -216,7 +222,11 @@ public class EndpointYamlGenerator {
                 PositionalArgumentNode portArg = (PositionalArgumentNode) arg;
                 String portVal = getPortValue(portArg.expression(), context.semanticModel(), context).orElse(null);
                 if (portVal != null) {
-                    port = Integer.parseInt(portVal);
+                    try {
+                        port = Integer.parseInt(portVal);
+                    } catch (NumberFormatException e) {
+                        reportNonNumericPort(context);
+                    }
                 }
             }
         }
@@ -248,7 +258,7 @@ public class EndpointYamlGenerator {
         Endpoint ep = getEndpoint();
         Path outPath = resolveOutputPath();
         String fileName = buildEndpointFileName(outPath);
-        Path path = Paths.get(TARGET, ARTIFACT, fileName + YAML_EXTENSION).toAbsolutePath();
+        Path path = outPath.resolve(ARTIFACT).resolve(fileName + YAML_EXTENSION);
         writeYaml(path, new EndpointWrapper(ep));
     }
 
@@ -340,7 +350,7 @@ public class EndpointYamlGenerator {
             return Optional.empty();
         }
         if (isConfigurable || isConfigurablePort) {
-            reportDefualtPortConfigDiagnostic(context);
+            reportDefaultPortConfigDiagnostic(context);
         }
         if (portExpr.kind().equals(SyntaxKind.NUMERIC_LITERAL)) {
             return resolveNumericLiteral(portExpr);
@@ -359,13 +369,22 @@ public class EndpointYamlGenerator {
         context.reportDiagnostic(DiagnosticFactory.createDiagnostic(diagnosticInfo, context.node().location()));
     }
 
-    private void reportDefualtPortConfigDiagnostic(SyntaxNodeAnalysisContext context) {
+    private void reportDefaultPortConfigDiagnostic(SyntaxNodeAnalysisContext context) {
         DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
-                "PORT_CONFIGURATION_BEING_NULL",
+                "PORT_USING_CONFIGURABLE_DEFAULT",
                 "The server port is defined as a configurable. Hence," +
                         "using the default value to generate the server information " +
                 "when --export-endpoints flag is present",
                 DiagnosticSeverity.WARNING
+        );
+        context.reportDiagnostic(DiagnosticFactory.createDiagnostic(diagnosticInfo, context.node().location()));
+    }
+
+    private void reportNonNumericPort(SyntaxNodeAnalysisContext context) {
+        DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
+                "PORT_BEING_NON_NUMERIC",
+                "The server port should contain a numeric value.",
+                DiagnosticSeverity.ERROR
         );
         context.reportDiagnostic(DiagnosticFactory.createDiagnostic(diagnosticInfo, context.node().location()));
     }
