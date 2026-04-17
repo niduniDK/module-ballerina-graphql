@@ -52,8 +52,6 @@ public class FileNameGeneratorUtil {
     private static final String HYPHEN = "-";
     private final Map<Integer, String> services = new HashMap<>();
 
-    private static final String YAML_EXTENSION = "_yaml";
-
     private SyntaxNodeAnalysisContext context = null;
     private static final String schemaExtension = ".graphql";
 
@@ -100,7 +98,7 @@ public class FileNameGeneratorUtil {
             NodeList<Node> resourcePathNode = ((ServiceDeclarationNode) node).absoluteResourcePath();
 
             for (Node identifierNode : resourcePathNode) {
-                basePath.append(identifierNode.toString().replace("\"", "").trim());
+                basePath.append(identifierNode.toString().trim());
             }
 
             String serviceBasePath = basePath.toString();
@@ -205,6 +203,6 @@ public class FileNameGeneratorUtil {
                 duplicateCount++;
             }
         }
-        return fileName.split("\\.")[0] + "." + duplicateCount + YAML_EXTENSION;
+        return fileName.split("\\.")[0] + "." + duplicateCount;
     }
 }

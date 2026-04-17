@@ -33,7 +33,6 @@ import io.ballerina.tools.diagnostics.DiagnosticFactory;
 import io.ballerina.tools.diagnostics.DiagnosticInfo;
 import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 
-import java.io.IOException;
 import java.util.Map;
 
 import static io.ballerina.stdlib.graphql.commons.utils.Utils.isGraphqlService;
@@ -83,6 +82,13 @@ public class ServiceDeclarationAnalysisTask extends ServiceAnalysisTask {
             isExportEndpoints = buildOptions.exportEndpoints();
         } catch (NoSuchMethodError e) {
             // Used to catch the buildOption not found error for earlier ballerina versions
+            DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
+                    "NO_SUCH_METHOD_ERROR",
+                    "The build option `--export-endpoints` is not available in the ballerina version " +
+                            "you are using. Use ballerina 2201.13.3 or higher." + e.getMessage(),
+                    DiagnosticSeverity.WARNING
+            );
+            context.reportDiagnostic(DiagnosticFactory.createDiagnostic(diagnosticInfo, node.location()));
         }
 
         if (isExportEndpoints) {
@@ -91,7 +97,7 @@ public class ServiceDeclarationAnalysisTask extends ServiceAnalysisTask {
             try {
                 endpointYamlGeneratorImplGql.writeEndpointYaml();
                 schemaExporter.exportSchema();
-            } catch (IOException e) {
+            } catch (Exception e) {
                 DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
                         "EXPORT_FAILED",
                         "Failed to export endpoint artifacts: " + e.getMessage(),
